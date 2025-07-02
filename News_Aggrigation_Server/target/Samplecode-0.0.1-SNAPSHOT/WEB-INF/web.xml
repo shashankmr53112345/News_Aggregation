@@ -9,4 +9,26 @@
     <welcome-file>default.jsp</welcome-file>
     <welcome-file>default.htm</welcome-file>
   </welcome-file-list>
+  <servlet>
+        <servlet-name>NewsServlet</servlet-name>
+        <servlet-class>Servlets.NewsServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <!-- Servlet Mapping for NewsServlet -->
+    <servlet-mapping>
+        <servlet-name>NewsServlet</servlet-name>
+        <url-pattern>/api/news/*</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>UpdateExternalAPIKeyServlet</servlet-name>
+        <servlet-class>Servlets.UpdateExternalAPIKeyServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <!-- Servlet Mapping for NewsServlet -->
+    <servlet-mapping>
+        <servlet-name>UpdateExternalAPIKeyServlet</servlet-name>
+        <url-pattern>/APIKey/Update</url-pattern>
+    </servlet-mapping>
 </web-app>
