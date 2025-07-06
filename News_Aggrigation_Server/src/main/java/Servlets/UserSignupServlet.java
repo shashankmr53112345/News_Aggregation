@@ -74,6 +74,6 @@ public class UserSignupServlet extends HttpServlet {
 		String password = jsonInput.getString("password");
 		boolean isAdmin = jsonInput.optBoolean("isAdmin", false);
 
-		return new User(0, username, email, password, isAdmin);
+		return new User(username, email, password, isAdmin);
 	}
 }

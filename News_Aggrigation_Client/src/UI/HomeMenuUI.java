@@ -27,7 +27,7 @@ public class HomeMenuUI {
 
 	public void startApplication() {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MMM-yyyy");
-		SimpleDateFormat timeFormat = new SimpleDateFormat("h:mm a");
+		SimpleDateFormat timeFormat = new SimpleDateFormat("h:mm a z");
 		String currentDate = dateFormat.format(new Date());
 		String currentTime = timeFormat.format(new Date());
 		System.out.printf("\nWelcome to the News Application! Date: %s Time: %s\n", currentDate, currentTime);
@@ -39,7 +39,7 @@ public class HomeMenuUI {
 
 	private void displayHomeMenu() {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MMM-yyyy");
-		SimpleDateFormat timeFormat = new SimpleDateFormat("h:mm a");
+		SimpleDateFormat timeFormat = new SimpleDateFormat("h:mm a z");
 		String currentDate = dateFormat.format(new Date());
 		String currentTime = timeFormat.format(new Date());
 		System.out.printf("\nWelcome to the News Application! Date: %s Time: %s\n", currentDate, currentTime);
@@ -82,8 +82,8 @@ public class HomeMenuUI {
 							userInputScanner, username);
 					adminMenu.displayAdminMenu();
 				} else {
-					UserMenuUI userMenu = new UserMenuUI(inputValidator, userInputScanner, username);
-					userMenu.displayUserMenu();
+					UserMenuUI userMenu = new UserMenuUI(inputValidator, userInputScanner, username, true);
+					userMenu.display();
 				}
 			} else {
 				System.out.println("Login failed: " + loginResponse.getString("message"));

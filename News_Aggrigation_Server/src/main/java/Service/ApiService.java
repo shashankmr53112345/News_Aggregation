@@ -32,8 +32,6 @@ public class ApiService {
 	}
 
 	private void processApiResponse(ExternalAPIs api, String response) {
-		// Implement your response processing logic here
-		// e.g., parse JSON, store in database, or trigger other actions
 		System.out.println("Processing response for API " + api.getName() + ": " + response);
 	}
 

@@ -19,5 +19,6 @@
         <servlet-name>NewsServlet</servlet-name>
         <url-pattern>/api/news/*</url-pattern>
     </servlet-mapping>
+    
 
 </web-app>

@@ -78,6 +78,46 @@ public class NewsServlet extends HttpServlet {
 						new JSONObject().put("articles", articlesJson));
 				response.setStatus(HttpServletResponse.SC_OK);
 				response.getWriter().write(responseBody.toJson());
+			} else if (pathInfo.equals("/search")) {
+				if (username == null || username.isEmpty()) {
+					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+					JsonResponseBody responseBody = new JsonResponseBody(false, "Username required");
+					response.getWriter().write(responseBody.toJson());
+					return;
+				}
+
+				if (!userService.validateUser(username)) {
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+					JsonResponseBody responseBody = new JsonResponseBody(false, "Invalid user");
+					response.getWriter().write(responseBody.toJson());
+					return;
+				}
+
+				String query = request.getParameter("query");
+				if (query == null || query.trim().isEmpty()) {
+					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+					JsonResponseBody responseBody = new JsonResponseBody(false, "Query parameter is required");
+					response.getWriter().write(responseBody.toJson());
+					return;
+				}
+
+				String startDate = request.getParameter("startDate");
+				String endDate = request.getParameter("endDate");
+				String sortBy = request.getParameter("sortBy");
+
+				try {
+					List<NewsArticles> articles = newsService.searchArticles(query, startDate, endDate, sortBy);
+					JSONArray articlesJson = articlesToJsonArray(articles);
+
+					JsonResponseBody responseBody = new JsonResponseBody(true, "Articles retrieved successfully",
+							new JSONObject().put("articles", articlesJson));
+					response.setStatus(HttpServletResponse.SC_OK);
+					response.getWriter().write(responseBody.toJson());
+				} catch (SQLException e) {
+					response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+					JsonResponseBody responseBody = new JsonResponseBody(false, "Database error: " + e.getMessage());
+					response.getWriter().write(responseBody.toJson());
+				}
 			} else {
 				response.setStatus(HttpServletResponse.SC_NOT_FOUND);
 				JsonResponseBody responseBody = new JsonResponseBody(false, "Invalid endpoint");

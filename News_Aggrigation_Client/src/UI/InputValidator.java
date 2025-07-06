@@ -26,7 +26,7 @@ public class InputValidator {
 		if (date == null || date.trim().isEmpty()) {
 			return false;
 		}
-		SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 		dateFormat.setLenient(false);
 		try {
 			dateFormat.parse(date);
@@ -34,5 +34,12 @@ public class InputValidator {
 		} catch (ParseException e) {
 			return false;
 		}
+	}
+
+	public boolean isValidKeyword(String keyword) {
+		if (keyword == null || keyword.trim().isEmpty()) {
+			return false;
+		}
+		return keyword.matches("^[A-Za-z0-9\\s-]+$");
 	}
 }

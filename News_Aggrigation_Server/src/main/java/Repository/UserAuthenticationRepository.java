@@ -23,8 +23,8 @@ public class UserAuthenticationRepository {
 			stmt.setString(1, username);
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
-				return new User(rs.getInt("id"), rs.getString("username"), rs.getString("email"),
-						rs.getString("password"), rs.getBoolean("is_admin"));
+				return new User(rs.getString("username"), rs.getString("email"), rs.getString("password"),
+						rs.getBoolean("is_admin"));
 			}
 			return null;
 		} catch (SQLException e) {

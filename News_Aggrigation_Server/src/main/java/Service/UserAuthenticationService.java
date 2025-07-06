@@ -32,7 +32,7 @@ public class UserAuthenticationService {
 			throw new IllegalArgumentException("Missing required fields");
 		}
 		String hashedPassword = passwordUtil.hashPassword(user.getPasswordHash());
-		User newUser = new User(0, user.getUsername(), user.getEmail(), hashedPassword, user.isAdmin());
+		User newUser = new User(user.getUsername(), user.getEmail(), hashedPassword, user.isAdmin());
 		userRepository.save(newUser);
 	}
 }
