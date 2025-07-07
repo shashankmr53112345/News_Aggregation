@@ -38,9 +38,7 @@ public class NewsArticlesService {
 		return httpRequestClient.post("/api/news/save", requestBody.toString());
 	}
 
-	// Placeholder for delete (to be implemented in NewsServlet)
 	public JSONObject deleteArticle(String articleId) throws Exception {
-		// Note: Requires DELETE endpoint in NewsServlet
 		throw new UnsupportedOperationException("Delete functionality not implemented yet.");
 	}
 }

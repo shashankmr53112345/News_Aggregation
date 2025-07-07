@@ -1,6 +1,5 @@
 package UI;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -18,12 +17,18 @@ public class NotificationsMenuUI extends UserBaseMenuUI {
 			"Keywords");
 	private static final DateTimeFormatter IST_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")
 			.withZone(ZoneId.of("Asia/Kolkata"));
+	private boolean logoutToHome; // New flag to indicate logout should go to HomeMenuUI
 
 	public NotificationsMenuUI(InputValidator inputValidator, Scanner userInputScanner, String username,
 			boolean isUserMenuActive) {
 		super(inputValidator, userInputScanner, username);
 		this.notificationService = new NotificationService();
 		this.isUserMenuActive = isUserMenuActive;
+		this.logoutToHome = false; // Initialize flag
+	}
+
+	public boolean isLogoutToHome() {
+		return logoutToHome; // Getter for parent menu to check
 	}
 
 	public void display() {
@@ -51,6 +56,7 @@ public class NotificationsMenuUI extends UserBaseMenuUI {
 			case "4":
 				isUserMenuActive = false;
 				isNotificationsMenuActive = false;
+				logoutToHome = true; // Set flag to indicate logout to home
 				System.out.println("Logging out...");
 				break;
 			default:
@@ -119,11 +125,8 @@ public class NotificationsMenuUI extends UserBaseMenuUI {
 				for (int i = 0; i < notifications.length(); i++) {
 					JSONObject notification = notifications.getJSONObject(i);
 					String createdAt = notification.getString("createdAt");
-					// Parse and convert to IST
-					LocalDateTime dateTime = LocalDateTime.parse(createdAt);
-					String istTime = IST_FORMATTER.format(dateTime);
 					System.out.printf("%d. Article ID: %s\n   Message: %s\n   Sent At: %s\n", (i + 1),
-							notification.getString("articleId"), notification.getString("message"), istTime);
+							notification.getString("articleId"), notification.getString("message"), createdAt);
 				}
 				fetchNotifications = false;
 			}

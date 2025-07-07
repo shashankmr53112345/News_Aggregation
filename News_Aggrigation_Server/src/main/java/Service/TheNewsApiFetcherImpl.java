@@ -110,7 +110,7 @@ public class TheNewsApiFetcherImpl extends NewsApiFetcherImpl implements ApiNews
 				String articleCategory = determineCategoryFromResponse(article, title, description, category);
 
 				NewsArticles newsArticle = new NewsArticles(id, title, description, source, urlStr, articleCategory,
-						publishedAt, 0, 0, 0);
+						publishedAt, 0, 0, 0, null);
 				allArticles.add(newsArticle);
 				newsArticleFetcherRepository.insertArticle(newsArticle);
 			}

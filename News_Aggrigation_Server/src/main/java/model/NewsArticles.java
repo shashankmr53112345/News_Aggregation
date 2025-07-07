@@ -1,5 +1,7 @@
 package model;
 
+import java.sql.Timestamp;
+
 public class NewsArticles {
 	private String id;
 	private String title;
@@ -11,9 +13,10 @@ public class NewsArticles {
 	private int likes;
 	private int dislikes;
 	private int reportCount;
+	private Timestamp insertedAt;
 
 	public NewsArticles(String id, String title, String description, String source, String url, String category,
-			String publishedAt, int likes, int dislikes, int reportCount) {
+			String publishedAt, int likes, int dislikes, int reportCount, Timestamp insertedAt) {
 		this.id = id;
 		this.title = title;
 		this.description = description;
@@ -24,11 +27,12 @@ public class NewsArticles {
 		this.likes = likes;
 		this.dislikes = dislikes;
 		this.reportCount = reportCount;
+		this.insertedAt = insertedAt;
 	}
 
 	public NewsArticles(String id, String title, String description, String source, String url, String category,
 			String publishedAt) {
-		this(id, title, description, source, url, category, publishedAt, 0, 0, 0);
+		this(id, title, description, source, url, category, publishedAt, 0, 0, 0, null);
 	}
 
 	public String getId() {
@@ -81,5 +85,13 @@ public class NewsArticles {
 
 	public void setReportCount(int reportCount) {
 		this.reportCount = reportCount;
+	}
+
+	public Timestamp getInsertedAt() {
+		return insertedAt;
+	}
+
+	public void setInsertedAt(Timestamp insertedAt) {
+		this.insertedAt = insertedAt;
 	}
 }

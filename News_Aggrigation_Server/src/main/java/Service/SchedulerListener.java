@@ -22,12 +22,12 @@ public class SchedulerListener implements ServletContextListener {
 				newsStorageService.fetchAndStoreAllNews();
 
 				NotificationProcessor notificationProcessor = new NotificationProcessor();
-				notificationProcessor.processNotifications(newsStorageService.getLastFetchedArticles());
+				notificationProcessor.processNotifications();
 			} catch (Exception executionException) {
 				System.err.println("Error in scheduled fetch or notification: " + executionException.getMessage());
 				executionException.printStackTrace();
 			}
-		}, 0, 30, TimeUnit.MINUTES);
+		}, 0, 4, TimeUnit.HOURS);
 	}
 
 	@Override

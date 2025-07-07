@@ -2,10 +2,15 @@ package UI;
 
 import java.util.Scanner;
 
+import service.UserNewsOperationsService;
+
 public class UserMenuUI extends UserBaseMenuUI {
+	private final UserNewsOperationsService userNewsOperationsService;
+
 	public UserMenuUI(InputValidator inputValidator, Scanner userInputScanner, String username,
-			boolean isUserMenuActive) {
+			UserNewsOperationsService userNewsOperationsService, boolean isUserMenuActive) {
 		super(inputValidator, userInputScanner, username);
+		this.userNewsOperationsService = userNewsOperationsService;
 		this.isUserMenuActive = isUserMenuActive;
 	}
 
@@ -23,24 +28,25 @@ public class UserMenuUI extends UserBaseMenuUI {
 
 			switch (choice) {
 			case "1":
-				System.out.println("Viewing headlines... (To be implemented)");
-				System.out.print("Press Enter to continue: ");
-				userInputScanner.nextLine();
+				HeadlinesMenuUI headlinesMenu = new HeadlinesMenuUI(inputValidator, userInputScanner, userId,
+						userNewsOperationsService, isUserMenuActive);
+				headlinesMenu.display();
 				break;
 			case "2":
-				System.out.println("Viewing saved articles... (To be implemented)");
-				System.out.print("Press Enter to continue: ");
-				userInputScanner.nextLine();
+				SavedArticlesMenuUI savedArticlesMenu = new SavedArticlesMenuUI(inputValidator, userInputScanner,
+						userId, userNewsOperationsService, isUserMenuActive);
+				savedArticlesMenu.display();
 				break;
 			case "3":
-				System.out.println("Searching articles... (To be implemented)");
-				System.out.print("Press Enter to continue: ");
-				userInputScanner.nextLine();
+				SearchMenuUI searchMenu = new SearchMenuUI(inputValidator, userInputScanner, userId,
+						userNewsOperationsService, isUserMenuActive);
+				searchMenu.display();
 				break;
 			case "4":
 				NotificationsMenuUI notificationsMenu = new NotificationsMenuUI(inputValidator, userInputScanner,
 						userId, isUserMenuActive);
 				notificationsMenu.display();
+
 				break;
 			case "5":
 				isUserMenuActive = false;

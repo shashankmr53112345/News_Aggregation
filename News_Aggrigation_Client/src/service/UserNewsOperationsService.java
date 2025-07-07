@@ -14,6 +14,10 @@ public class UserNewsOperationsService {
 		this.httpRequestClient = new HttpRequestClient("http://localhost:8080/News_Aggrigation_Server");
 	}
 
+	public UserNewsOperationsService(HttpRequestClient httpRequestClient) {
+		this.httpRequestClient = httpRequestClient;
+	}
+
 	public JSONObject getArticles(String endpoint, String username, String startDate, String endDate, String category) {
 		try {
 			StringBuilder url = new StringBuilder("api/news/" + endpoint);
@@ -38,12 +42,12 @@ public class UserNewsOperationsService {
 			System.out.println("Debug: GET URL = " + url.toString());
 			JSONObject response = httpRequestClient.get(url.toString());
 			if (!response.getBoolean("success")) {
-				return null;
+				return new JSONObject().put("success", false).put("message", response.getString("message"));
 			}
 			return response;
 		} catch (Exception e) {
 			System.err.println("Error in getArticles: " + e.getMessage());
-			return null;
+			return new JSONObject().put("success", false).put("message", "Error fetching articles: " + e.getMessage());
 		}
 	}
 
@@ -57,12 +61,13 @@ public class UserNewsOperationsService {
 			System.out.println("Debug: GET URL = " + url.toString());
 			JSONObject response = httpRequestClient.get(url.toString());
 			if (!response.getBoolean("success")) {
-				return null;
+				return new JSONObject().put("success", false).put("message", response.getString("message"));
 			}
 			return response;
 		} catch (Exception e) {
 			System.err.println("Error in getSavedArticles: " + e.getMessage());
-			return null;
+			return new JSONObject().put("success", false).put("message",
+					"Error fetching saved articles: " + e.getMessage());
 		}
 	}
 
@@ -171,12 +176,90 @@ public class UserNewsOperationsService {
 			System.out.println("Debug: GET URL = " + url.toString());
 			JSONObject response = httpRequestClient.get(url.toString());
 			if (!response.getBoolean("success")) {
-				return null;
+				return new JSONObject().put("success", false).put("message", response.getString("message"));
 			}
 			return response;
 		} catch (Exception e) {
 			System.err.println("Error in searchArticles: " + e.getMessage());
-			return null;
+			return new JSONObject().put("success", false).put("message", "Error searching articles: " + e.getMessage());
+		}
+	}
+
+	public JSONObject getReportedArticles() {
+		try {
+			String url = "admin/reports";
+			System.out.println("Debug: GET URL = " + url);
+			JSONObject response = httpRequestClient.get(url.toString());
+			if (!response.getBoolean("success")) {
+				return new JSONObject().put("success", false).put("message", response.getString("message"));
+			}
+			return response;
+		} catch (Exception e) {
+			System.err.println("Error in getting reported articles: " + e.getMessage());
+			return new JSONObject().put("success", false).put("message",
+					"Error fetching reported articles: " + e.getMessage());
+		}
+	}
+
+	public JSONObject hideArticleById(String username, String articleId) {
+		try {
+			if (username == null || username.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Username is required");
+			}
+			if (articleId == null || articleId.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Article ID is required");
+			}
+			String url = "api/articles/hide";
+			JSONObject payload = new JSONObject().put("username", username).put("action", "hide_by_id").put("articleId",
+					articleId);
+			System.out.println("Debug: POST URL = " + url + ", Payload = " + payload.toString());
+			JSONObject response = httpRequestClient.post(url, payload.toString());
+			return response;
+		} catch (Exception e) {
+			System.err.println("Error hiding article by ID: " + e.getMessage());
+			return new JSONObject().put("success", false).put("message", "Error hiding article: " + e.getMessage());
+		}
+	}
+
+	public JSONObject hideArticlesByKeyword(String username, String keyword) {
+		try {
+			if (username == null || username.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Username is required");
+			}
+			if (keyword == null || keyword.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Keyword is required");
+			}
+			String url = "api/articles/hide";
+			JSONObject payload = new JSONObject().put("username", username).put("action", "hide_by_keyword")
+					.put("keyword", keyword);
+			System.out.println("Debug: POST URL = " + url + ", Payload = " + payload.toString());
+			JSONObject response = httpRequestClient.post(url, payload.toString());
+			return response;
+		} catch (Exception e) {
+			System.err.println("Error hiding articles by keyword: " + e.getMessage());
+			return new JSONObject().put("success", false).put("message",
+					"Error hiding articles by keyword: " + e.getMessage());
+		}
+	}
+
+	public JSONObject hideArticlesByCategory(String username, String category) {
+		try {
+			if (username == null || username.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Username is required");
+			}
+			if (category == null || category.trim().isEmpty()) {
+				return new JSONObject().put("success", false).put("message", "Category is required");
+			}
+			String url = "api/articles/hide";
+			JSONObject payload = new JSONObject().put("username", username).put("action", "hide_by_category")
+					.put("category", category);
+			System.out.println("Debug: POST URL = " + url + ", Payload = " + payload.toString());
+			JSONObject response = httpRequestClient.post(url, payload.toString());
+			return response;
+		} catch (Exception e) {
+			System.err.println("Error hiding articles by category: " + e.getMessage());
+			return new JSONObject().put("success", false).put("message",
+					"Error hiding articles by category: " + e.getMessage());
 		}
 	}
 }

@@ -1,73 +1,61 @@
 package Servlets;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 
-import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import Service.UserAuthenticationService;
+import Service.AuthenticationService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import model.User;
-import util.JsonResponseBody;
+import util.JsonResponse;
+import util.RequestParser;
 
 @WebServlet("/UserLogin")
 public class LoginServlet extends HttpServlet {
-	private final UserAuthenticationService userService;
+	private static final Logger logger = LoggerFactory.getLogger(LoginServlet.class);
+	private final AuthenticationService authService;
+	private final RequestParser requestParser;
 
 	public LoginServlet() {
-		this.userService = new UserAuthenticationService();
+		this.authService = new AuthenticationService();
+		this.requestParser = new RequestParser();
+		;
 	}
 
-	public LoginServlet(UserAuthenticationService userService) {
-		this.userService = userService;
+	public LoginServlet(AuthenticationService userService, RequestParser requestParser) {
+		this.authService = new AuthenticationService();
+		this.requestParser = new RequestParser();
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		response.setContentType("application/json");
-		PrintWriter out = response.getWriter();
-
 		try {
-			JSONObject jsonInput = parseRequestBody(request);
+			JSONObject jsonInput = requestParser.parseRequestBody(request);
 			String username = jsonInput.getString("username");
 			String password = jsonInput.getString("password");
 
-			User user = userService.authenticateUser(username, password);
+			logger.info("Processing login request for username: {}", username);
+			var user = authService.authenticate(username, password);
+
 			response.setStatus(HttpServletResponse.SC_OK);
-			JSONObject userData = new JSONObject();
-			userData.put("username", user.getUsername());
-			userData.put("email", user.getEmail());
-			userData.put("isAdmin", user.isAdmin());
-			out.println(new JsonResponseBody(true, "Login successful", userData).toJson());
+			JSONObject userData = new JSONObject().put("username", user.getUsername()).put("email", user.getEmail())
+					.put("isAdmin", user.isAdmin());
+			JsonResponse.writeSuccess(response, "Login successful", userData);
+			logger.info("Login successful for username: {}", username);
 		} catch (IllegalArgumentException e) {
+			logger.warn("Authentication failed: {}", e.getMessage());
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			out.println(new JsonResponseBody(false, e.getMessage()).toJson());
-		} catch (JSONException e) {
-			System.err.println("Invalid JSON input for login: " + e.getMessage());
-			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			out.println(new JsonResponseBody(false, "Invalid request format").toJson());
+			JsonResponse.writeError(response, e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Unexpected error during login: " + e.getMessage());
+			logger.error("Unexpected error during login", e);
 			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			out.println(new JsonResponseBody(false, "Server error").toJson());
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
-
-	private JSONObject parseRequestBody(HttpServletRequest request) throws IOException {
-		StringBuilder buffer = new StringBuilder();
-		try (BufferedReader reader = request.getReader()) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				buffer.append(line);
-			}
-		}
-		return new JSONObject(buffer.toString());
-	}
-
 }

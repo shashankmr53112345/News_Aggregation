@@ -1,36 +1,45 @@
 package Service;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.mail.MessagingException;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import Repository.NotificationRepository;
+import jakarta.servlet.http.HttpServletResponse;
 import model.Notification;
 import model.NotificationPreference;
 import util.Email;
-import util.JsonResponseBody;
+import util.JsonResponse;
 
 public class NotificationService {
-	private final NotificationRepository notificationRepository;
-	private final Email emailSender;
+	private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
 	private static final List<String> VALID_CATEGORIES = Arrays.asList("Business", "Entertainment", "Sports",
 			"Technology", "Keywords");
+	private final NotificationRepository notificationRepository;
+	private final Email emailSender;
 
 	public NotificationService(NotificationRepository notificationRepository, Email emailSender) {
 		this.notificationRepository = notificationRepository;
 		this.emailSender = emailSender;
 	}
 
-	public JsonResponseBody getNotificationPreferences(String userName) {
+	public void getNotificationPreferences(String username, HttpServletResponse response) throws IOException {
+		logger.debug("Retrieving notification preferences for username: {}", username);
+		response.setContentType("application/json");
 		try {
-			NotificationPreference preference = notificationRepository.getNotificationPreference(userName);
+			NotificationPreference preference = notificationRepository.getNotificationPreference(username);
 			if (preference == null) {
-				return new JsonResponseBody(false, "No preferences found for user: " + userName);
+				logger.warn("No preferences found for username: {}", username);
+				response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+				JsonResponse.writeError(response, "No preferences found for user: " + username);
+				return;
 			}
 
 			JSONArray categoriesArray = new JSONArray();
@@ -41,29 +50,40 @@ public class NotificationService {
 				categoriesArray.put(categoryObj);
 			}
 
-			JSONArray keywordsArray = new JSONArray(preference.getKeywords());
-
 			JSONObject data = new JSONObject();
-			data.put("userName", userName);
+			data.put("username", username);
 			data.put("categories", categoriesArray);
-			data.put("keywords", keywordsArray);
+			data.put("keywords", new JSONArray(preference.getKeywords()));
 
-			return new JsonResponseBody(true, "Notification preferences retrieved", data);
+			response.setStatus(HttpServletResponse.SC_OK);
+			JsonResponse.writeSuccess(response, "Notification preferences retrieved", data);
+			logger.info("Retrieved preferences for username: {}", username);
+		} catch (SQLException e) {
+			logger.error("Database error retrieving preferences for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Error retrieving preferences for user " + userName + ": " + e.getMessage());
-			e.printStackTrace();
-			return new JsonResponseBody(false, "Error retrieving preferences: " + e.getMessage());
+			logger.error("Unexpected error retrieving preferences for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 
-	public JsonResponseBody updateNotificationPreference(String userName, String category, Boolean enabled) {
+	public void updateNotificationPreference(String username, String category, Boolean enabled,
+			HttpServletResponse response) throws IOException {
+		logger.debug("Updating notification preference for username: {}, category: {}, enabled: {}", username, category,
+				enabled);
+		response.setContentType("application/json");
 		if (!VALID_CATEGORIES.contains(category)) {
-			return new JsonResponseBody(false, "Invalid category: " + category);
+			logger.warn("Invalid category: {} for username: {}", category, username);
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			JsonResponse.writeError(response, "Invalid category: " + category);
+			return;
 		}
 		try {
-			NotificationPreference preference = notificationRepository.getNotificationPreference(userName);
+			NotificationPreference preference = notificationRepository.getNotificationPreference(username);
 			if (preference == null) {
-				preference = new NotificationPreference(userName, new ArrayList<>(), new ArrayList<>());
+				preference = new NotificationPreference(username, new ArrayList<>(), new ArrayList<>());
 			}
 			List<String> categories = new ArrayList<>(preference.getCategories());
 			if (enabled) {
@@ -73,155 +93,154 @@ public class NotificationService {
 			} else {
 				categories.remove(category.toLowerCase());
 			}
-			boolean success = notificationRepository.saveNotificationPreference(userName, categories,
+			boolean success = notificationRepository.saveNotificationPreference(username, categories,
 					preference.getKeywords());
 			if (success) {
-				String emailAddress = notificationRepository.getUserEmail(userName);
-				if (emailAddress != null) {
-					try {
-						emailSender.sendEmail(emailAddress, "Notification Preference Updated", "Category " + category
-								+ " has been " + (enabled ? "enabled" : "disabled") + " for user " + userName);
-						System.out.println("Debug: Email sent to " + emailAddress + " for preference update");
-					} catch (MessagingException e) {
-						System.err
-								.println("Warning: Failed to send email for user " + userName + ": " + e.getMessage());
-					}
-				}
+				String email = notificationRepository.getUserEmail(username);
+				logger.info("Updated category {} to {} for username: {}, email: {}", category, enabled, username,
+						email);
+			} else {
+				logger.warn("Failed to update category {} for username: {}", category, username);
 			}
-			return new JsonResponseBody(success,
-					success ? "Category " + category + " updated" : "Failed to update category");
+			response.setStatus(HttpServletResponse.SC_OK);
+			JsonResponse.writeSuccess(response,
+					success ? "Category " + category + " updated" : "Failed to update category", null);
+		} catch (SQLException e) {
+			logger.error("Database error updating preference for username: {}, category: {}", username, category, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Error updating preference for user " + userName + ", category " + category + ": "
-					+ e.getMessage());
-			e.printStackTrace();
-			return new JsonResponseBody(false, "Error updating preference: " + e.getMessage());
+			logger.error("Unexpected error updating preference for username: {}, category: {}", username, category, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 
-	public JsonResponseBody addKeyword(String userName, String keyword) {
+	public void addKeyword(String username, String keyword, HttpServletResponse response) throws IOException {
+		logger.debug("Adding keyword: {} for username: {}", keyword, username);
+		response.setContentType("application/json");
 		if (keyword == null || keyword.trim().isEmpty() || keyword.length() > 255) {
-			return new JsonResponseBody(false, "Invalid or missing keyword (max 255 characters)");
+			logger.warn("Invalid or missing keyword for username: {}", username);
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			JsonResponse.writeError(response, "Invalid or missing keyword (max 255 characters)");
+			return;
 		}
 		try {
-			NotificationPreference preference = notificationRepository.getNotificationPreference(userName);
+			NotificationPreference preference = notificationRepository.getNotificationPreference(username);
 			if (preference == null || !preference.getCategories().contains("keywords")) {
-				return new JsonResponseBody(false, "Keywords category must be enabled to add keywords");
+				logger.warn("Keywords category not enabled for username: {}", username);
+				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+				JsonResponse.writeError(response, "Keywords category must be enabled to add keywords");
+				return;
 			}
 			List<String> keywords = new ArrayList<>(preference.getKeywords());
 			String keywordLower = keyword.toLowerCase();
 			if (!keywords.contains(keywordLower)) {
 				keywords.add(keywordLower);
-				boolean success = notificationRepository.saveNotificationPreference(userName,
+				boolean success = notificationRepository.saveNotificationPreference(username,
 						preference.getCategories(), keywords);
 				if (success) {
-					String emailAddress = notificationRepository.getUserEmail(userName);
-					if (emailAddress != null) {
-						try {
-							emailSender.sendEmail(emailAddress, "Keyword Added",
-									"Keyword " + keyword + " has been added for user " + userName);
-							System.out.println("Debug: Email sent to " + emailAddress + " for keyword addition");
-						} catch (MessagingException e) {
-							System.err.println(
-									"Warning: Failed to send email for user " + userName + ": " + e.getMessage());
-						}
-					}
+					String email = notificationRepository.getUserEmail(username);
+					logger.info("Added keyword: {} for username: {}, email: {}", keywordLower, username, email);
+				} else {
+					logger.warn("Failed to add keyword: {} for username: {}", keywordLower, username);
 				}
-				return new JsonResponseBody(success, success ? "Keyword added" : "Failed to add keyword");
+				response.setStatus(HttpServletResponse.SC_OK);
+				JsonResponse.writeSuccess(response, success ? "Keyword added" : "Failed to add keyword", null);
+			} else {
+				logger.warn("Keyword already exists: {} for username: {}", keywordLower, username);
+				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+				JsonResponse.writeError(response, "Keyword already exists");
 			}
-			return new JsonResponseBody(false, "Keyword already exists");
+		} catch (SQLException e) {
+			logger.error("Database error adding keyword for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Error adding keyword for user " + userName + ": " + e.getMessage());
-			e.printStackTrace();
-			return new JsonResponseBody(false, "Error adding keyword: " + e.getMessage());
+			logger.error("Unexpected error adding keyword for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 
-	public JsonResponseBody deleteKeyword(String userName, String keyword) {
+	public void deleteKeyword(String username, String keyword, HttpServletResponse response) throws IOException {
+		logger.debug("Deleting keyword: {} for username: {}", keyword, username);
+		response.setContentType("application/json");
 		if (keyword == null || keyword.trim().isEmpty()) {
-			return new JsonResponseBody(false, "Invalid or missing keyword");
+			logger.warn("Invalid or missing keyword for username: {}", username);
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			JsonResponse.writeError(response, "Invalid or missing keyword");
+			return;
 		}
 		try {
-			NotificationPreference preference = notificationRepository.getNotificationPreference(userName);
+			NotificationPreference preference = notificationRepository.getNotificationPreference(username);
 			if (preference == null || !preference.getCategories().contains("keywords")) {
-				return new JsonResponseBody(false, "Keywords category must be enabled to delete keywords");
+				logger.warn("Keywords category not enabled for username: {}", username);
+				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+				JsonResponse.writeError(response, "Keywords category must be enabled to delete keywords");
+				return;
 			}
 			List<String> keywords = new ArrayList<>(preference.getKeywords());
 			String keywordLower = keyword.toLowerCase();
 			if (keywords.contains(keywordLower)) {
 				keywords.remove(keywordLower);
-				boolean success = notificationRepository.saveNotificationPreference(userName,
+				boolean success = notificationRepository.saveNotificationPreference(username,
 						preference.getCategories(), keywords);
 				if (success) {
-					String emailAddress = notificationRepository.getUserEmail(userName);
-					if (emailAddress != null) {
-						try {
-							emailSender.sendEmail(emailAddress, "Keyword Removed",
-									"Keyword " + keyword + " has been removed for user " + userName);
-							System.out.println("Debug: Email sent to " + emailAddress + " for keyword removal");
-						} catch (MessagingException e) {
-							System.err.println(
-									"Warning: Failed to send email for user " + userName + ": " + e.getMessage());
-						}
-					}
+					String email = notificationRepository.getUserEmail(username);
+					logger.info("Deleted keyword: {} for username: {}, email: {}", keywordLower, username, email);
+				} else {
+					logger.warn("Failed to delete keyword: {} for username: {}", keywordLower, username);
 				}
-				return new JsonResponseBody(success, success ? "Keyword removed" : "Failed to remove keyword");
-			}
-			return new JsonResponseBody(false, "Keyword not found");
-		} catch (Exception e) {
-			System.err.println("Error deleting keyword for user " + userName + ": " + e.getMessage());
-			e.printStackTrace();
-			return new JsonResponseBody(false, "Error deleting keyword: " + e.getMessage());
-		}
-	}
-
-	public List<Notification> getNotifications(String userName) {
-		return notificationRepository.getNotifications(userName);
-	}
-
-	public boolean saveNotification(String userName, String articleId, String message, String emailAddress) {
-		try {
-			boolean saved = notificationRepository.saveNotification(userName, articleId, message);
-			if (saved) {
-				System.out.println("Debug: Notification saved for user: " + userName + ", articleId: " + articleId);
-				if (emailAddress != null) {
-					try {
-						emailSender.sendEmail(emailAddress, "News Alert: " + message, message);
-						System.out.println(
-								"Debug: Notification email sent to " + emailAddress + " for article " + articleId);
-					} catch (MessagingException e) {
-						System.err.println("Warning: Failed to send notification email to " + emailAddress + ": "
-								+ e.getMessage());
-					}
-				}
+				response.setStatus(HttpServletResponse.SC_OK);
+				JsonResponse.writeSuccess(response, success ? "Keyword removed" : "Failed to remove keyword", null);
 			} else {
-				System.err.println(
-						"Error: Failed to save notification for user: " + userName + ", articleId: " + articleId);
+				logger.warn("Keyword not found: {} for username: {}", keywordLower, username);
+				response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+				JsonResponse.writeError(response, "Keyword not found");
 			}
-			return saved;
+		} catch (SQLException e) {
+			logger.error("Database error deleting keyword for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Error in saveNotification for user: " + userName + ", articleId: " + articleId + ": "
-					+ e.getMessage());
-			e.printStackTrace();
-			return false;
+			logger.error("Unexpected error deleting keyword for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 
-	public JsonResponseBody clearNotifications(String userName) {
+	public void clearNotifications(String username, HttpServletResponse response) throws IOException {
+		logger.debug("Clearing notifications for username: {}", username);
+		response.setContentType("application/json");
 		try {
-			boolean success = notificationRepository.deleteNotifications(userName);
-			return new JsonResponseBody(success, success ? "Notifications cleared" : "Failed to clear notifications");
+			boolean success = notificationRepository.deleteNotifications(username);
+			response.setStatus(HttpServletResponse.SC_OK);
+			JsonResponse.writeSuccess(response, success ? "Notifications cleared" : "No notifications to clear", null);
+			logger.info("Notifications cleared for username: {}, success: {}", username, success);
+		} catch (SQLException e) {
+			logger.error("Database error clearing notifications for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Error clearing notifications for user " + userName + ": " + e.getMessage());
-			e.printStackTrace();
-			return new JsonResponseBody(false, "Error clearing notifications: " + e.getMessage());
+			logger.error("Unexpected error clearing notifications for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 
-	public NotificationPreference getNotificationPreference(String userName) {
-		return notificationRepository.getNotificationPreference(userName);
+	public List<Notification> getNotifications(String username) throws SQLException {
+		logger.debug("Fetching notifications for username: {}", username);
+		return notificationRepository.getNotifications(username);
 	}
 
-	public String getUserEmail(String userName) {
-		return notificationRepository.getUserEmail(userName);
+	public NotificationPreference getNotificationPreference(String username) throws SQLException {
+		logger.debug("Fetching notification preference for username: {}", username);
+		return notificationRepository.getNotificationPreference(username);
+	}
+
+	public String getUserEmail(String username) throws SQLException {
+		logger.debug("Fetching user email for username: {}", username);
+		return notificationRepository.getUserEmail(username);
 	}
 }

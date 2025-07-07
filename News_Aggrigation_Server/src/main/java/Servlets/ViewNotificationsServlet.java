@@ -1,13 +1,16 @@
 package Servlets;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import Repository.NotificationRepository;
 import Service.NotificationService;
+import Service.ValidateUserService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -15,60 +18,65 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import model.Notification;
 import util.Email;
-import util.JsonResponseBody;
+import util.JsonResponse;
+import util.JsonUtils;
 
 @WebServlet("/api/notifications/view")
 public class ViewNotificationsServlet extends HttpServlet {
-	private NotificationService notificationService;
+	private static final Logger logger = LoggerFactory.getLogger(ViewNotificationsServlet.class);
+	private final NotificationService notificationService;
+	private final ValidateUserService userService;
 
-	@Override
-	public void init() {
-		notificationService = new NotificationService(new NotificationRepository(), new Email());
+	public ViewNotificationsServlet() {
+		this.notificationService = new NotificationService(new NotificationRepository(), new Email());
+		this.userService = new ValidateUserService();
+	}
+
+	public ViewNotificationsServlet(NotificationService notificationService, ValidateUserService userService) {
+		this.notificationService = notificationService;
+		this.userService = userService;
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
+		response.setContentType("application/json");
 		String username = request.getParameter("username");
+		logger.debug("Processing GET request for notifications, username: {}", username);
+
 		if (username == null || username.trim().isEmpty()) {
+			logger.warn("Username missing in GET request");
 			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			JsonResponseBody responseBody = new JsonResponseBody(false, "Username is required");
-			response.getWriter().write(responseBody.toJson());
-			System.err.println("Error: Username is required in query parameter");
+			JsonResponse.writeError(response, "Username is required");
 			return;
 		}
 
 		try {
-			List<Notification> notifications = notificationService.getNotifications(username);
-			JSONArray notificationsArray = new JSONArray();
-			for (Notification notification : notifications) {
-				JSONObject notificationObj = new JSONObject();
-				notificationObj.put("username", notification.getUsername());
-				notificationObj.put("articleId", notification.getArticleId());
-				notificationObj.put("message", notification.getMessage());
-				notificationObj.put("createdAt", notification.getCreatedAt().toString());
-				notificationsArray.put(notificationObj);
+			if (!userService.validateUser(username)) {
+				logger.warn("Invalid user: {}", username);
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				JsonResponse.writeError(response, "Invalid user");
+				return;
 			}
-
-			JSONObject data = new JSONObject();
-			data.put("notifications", notificationsArray);
-
-			JsonResponseBody responseBody = new JsonResponseBody(true, "Notifications retrieved", data);
-			response.setContentType("application/json");
-			response.setStatus(HttpServletResponse.SC_OK);
-			response.getWriter().write(responseBody.toJson());
-
-			JSONObject jsonResponse = new JSONObject(responseBody.toJson());
-			boolean success = jsonResponse.getBoolean("success");
-			String message = jsonResponse.getString("message");
-			System.out.println("Debug: Notifications retrieved for username: " + username + " - success: " + success
-					+ ", message: " + message);
-		} catch (Exception e) {
-			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			JsonResponseBody responseBody = new JsonResponseBody(false,
-					"Error retrieving notifications: " + e.getMessage());
-			response.getWriter().write(responseBody.toJson());
-			System.err.println("Error retrieving notifications for username: " + username + ": " + e.getMessage());
+		} catch (SQLException e) {
 			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		try {
+			List<Notification> notifications = notificationService.getNotifications(username);
+			response.setStatus(HttpServletResponse.SC_OK);
+			JsonResponse.writeSuccess(response, "Notifications retrieved",
+					new JSONObject().put("notifications", JsonUtils.notificationsToJsonArray(notifications)));
+			logger.info("Retrieved {} notifications for username: {}", notifications.size(), username);
+		} catch (SQLException e) {
+			logger.error("Database error retrieving notifications for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Database error: " + e.getMessage());
+		} catch (Exception e) {
+			logger.error("Unexpected error retrieving notifications for username: {}", username, e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			JsonResponse.writeError(response, "Server error");
 		}
 	}
 }

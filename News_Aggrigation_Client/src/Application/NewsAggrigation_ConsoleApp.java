@@ -5,6 +5,7 @@ import UI.InputValidator;
 import data.HttpRequestClient;
 import service.ExternalAPIService;
 import service.UserAuthenticationService;
+import service.UserNewsOperationsService;
 
 public class NewsAggrigation_ConsoleApp {
 	public static void main(String[] args) {
@@ -13,7 +14,9 @@ public class NewsAggrigation_ConsoleApp {
 		UserAuthenticationService authenticationService = new UserAuthenticationService(httpRequestClient);
 		ExternalAPIService externalApiService = new ExternalAPIService(httpRequestClient);
 		InputValidator inputValidator = new InputValidator();
-		HomeMenuUI homeMenuInterface = new HomeMenuUI(authenticationService, externalApiService, inputValidator);
+		UserNewsOperationsService userNewsOperationsService = new UserNewsOperationsService();
+		HomeMenuUI homeMenuInterface = new HomeMenuUI(authenticationService, userNewsOperationsService,
+				externalApiService, inputValidator);
 
 		homeMenuInterface.startApplication();
 	}

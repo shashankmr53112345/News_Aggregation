@@ -1,71 +1,62 @@
 package Servlets;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 
-import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import Repository.UserAuthenticationRepository.DuplicateKeyException;
-import Service.UserAuthenticationService;
+import Repository.UserRepository;
+import Service.RegistrationService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import model.User;
-import util.JsonResponseBody;
+import util.JsonResponse;
+import util.RequestParser;
 
 @WebServlet("/UserSignup")
 public class UserSignupServlet extends HttpServlet {
-	private final UserAuthenticationService userService;
+	private static final Logger logger = LoggerFactory.getLogger(UserSignupServlet.class);
+	private final RegistrationService registrationService;
+	private final RequestParser requestParser;
 
 	public UserSignupServlet() {
-		this.userService = new UserAuthenticationService();
+		this.registrationService = new RegistrationService();
+		this.requestParser = new RequestParser();
 	}
 
-	public UserSignupServlet(UserAuthenticationService userService) {
-		this.userService = userService;
+	public UserSignupServlet(RegistrationService userService, RequestParser requestParser) {
+		this.registrationService = userService;
+		this.requestParser = new RequestParser();
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		response.setContentType("application/json");
-		PrintWriter out = response.getWriter();
-
 		try {
-			JSONObject jsonInput = parseRequestBody(request);
+			JSONObject jsonInput = requestParser.parseRequestBody(request);
 			User user = createUserFromJson(jsonInput);
-			userService.registerUser(user);
+			logger.info("Processing registration request for username: {}", user.getUsername());
+			registrationService.register(user);
 			response.setStatus(HttpServletResponse.SC_CREATED);
-			out.println(new JsonResponseBody(true, "User registered successfully").toJson());
-		} catch (DuplicateKeyException e) {
+			JsonResponse.writeSuccess(response, "User registered successfully", null);
+			logger.info("Registration successful for username: {}", user.getUsername());
+		} catch (UserRepository.DuplicateKeyException e) {
+			logger.warn("Registration failed: {}", e.getMessage());
 			response.setStatus(HttpServletResponse.SC_CONFLICT);
-			out.println(new JsonResponseBody(false, e.getMessage()).toJson());
+			JsonResponse.writeError(response, e.getMessage());
 		} catch (IllegalArgumentException e) {
+			logger.warn("Invalid registration request: {}", e.getMessage());
 			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			out.println(new JsonResponseBody(false, e.getMessage()).toJson());
-		} catch (JSONException e) {
-			System.err.println("Invalid JSON input for signup: " + e.getMessage());
-			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			out.println(new JsonResponseBody(false, "Invalid request format").toJson());
+			JsonResponse.writeError(response, e.getMessage());
 		} catch (Exception e) {
-			System.err.println("Unexpected error during signup: " + e.getMessage());
+			logger.error("Unexpected error during registration", e);
 			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			out.println(new JsonResponseBody(false, "Server error").toJson());
+			JsonResponse.writeError(response, "Server error");
 		}
-	}
-
-	private JSONObject parseRequestBody(HttpServletRequest request) throws IOException {
-		StringBuilder buffer = new StringBuilder();
-		try (BufferedReader reader = request.getReader()) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				buffer.append(line);
-			}
-		}
-		return new JSONObject(buffer.toString());
 	}
 
 	private User createUserFromJson(JSONObject jsonInput) {
@@ -73,7 +64,6 @@ public class UserSignupServlet extends HttpServlet {
 		String email = jsonInput.getString("email");
 		String password = jsonInput.getString("password");
 		boolean isAdmin = jsonInput.optBoolean("isAdmin", false);
-
 		return new User(username, email, password, isAdmin);
 	}
 }

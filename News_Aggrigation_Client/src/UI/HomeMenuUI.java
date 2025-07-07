@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import service.ExternalAPIService;
 import service.UserAuthenticationService;
+import service.UserNewsOperationsService;
 
 public class HomeMenuUI {
 	private final UserAuthenticationService authenticationService;
@@ -15,12 +16,15 @@ public class HomeMenuUI {
 	private final InputValidator inputValidator;
 	private final Scanner userInputScanner;
 	private boolean isApplicationRunning;
+	private final UserNewsOperationsService userNewsOperationsService;
 
-	public HomeMenuUI(UserAuthenticationService authenticationService, ExternalAPIService externalApiService,
+	public HomeMenuUI(UserAuthenticationService authenticationService,
+			UserNewsOperationsService userNewsOperationsService, ExternalAPIService externalApiService,
 			InputValidator inputValidator) {
 		this.authenticationService = authenticationService;
 		this.externalApiService = externalApiService;
 		this.inputValidator = inputValidator;
+		this.userNewsOperationsService = userNewsOperationsService;
 		this.userInputScanner = new Scanner(System.in);
 		this.isApplicationRunning = true;
 	}
@@ -37,7 +41,7 @@ public class HomeMenuUI {
 		userInputScanner.close();
 	}
 
-	private void displayHomeMenu() {
+	void displayHomeMenu() {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MMM-yyyy");
 		SimpleDateFormat timeFormat = new SimpleDateFormat("h:mm a z");
 		String currentDate = dateFormat.format(new Date());
@@ -78,11 +82,12 @@ public class HomeMenuUI {
 				boolean isAdminUser = loginResponse.getJSONObject("data").getBoolean("isAdmin");
 				System.out.println(loginResponse.getString("message"));
 				if (isAdminUser) {
-					AdminMenuUI adminMenu = new AdminMenuUI(authenticationService, externalApiService, inputValidator,
-							userInputScanner, username);
+					AdminMenuUI adminMenu = new AdminMenuUI(authenticationService, userNewsOperationsService,
+							externalApiService, inputValidator, username);
 					adminMenu.displayAdminMenu();
 				} else {
-					UserMenuUI userMenu = new UserMenuUI(inputValidator, userInputScanner, username, true);
+					UserMenuUI userMenu = new UserMenuUI(inputValidator, userInputScanner, username,
+							userNewsOperationsService, true);
 					userMenu.display();
 				}
 			} else {
